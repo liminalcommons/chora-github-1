@@ -1,0 +1,2 @@
+[console_scripts]
+github = chora_github.interfaces.cli:cli

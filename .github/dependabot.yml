@@ -1,0 +1,99 @@
+# GitHub - Dependabot Configuration
+#
+# Dependabot automatically creates pull requests to update dependencies.
+# See: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+
+version: 2
+updates:
+  # ==========================================================================
+  # Python Dependencies
+  # ==========================================================================
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "yourusername"  # Replace with your GitHub username
+    assignees:
+      - "yourusername"
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
+    # Group dependency updates
+    groups:
+      # Group all pytest-related dependencies
+      testing:
+        patterns:
+          - "pytest*"
+          - "coverage"
+      # Group all linting dependencies
+      linting:
+        patterns:
+          - "ruff"
+          - "mypy"
+          - "pre-commit"
+      # Group FastAPI ecosystem
+      fastapi:
+        patterns:
+          - "fastapi"
+          - "uvicorn"
+          - "pydantic*"
+          - "starlette"
+      # Group CLI dependencies
+      cli:
+        patterns:
+          - "click"
+          - "rich"
+          - "pyyaml"
+
+  # ==========================================================================
+  # GitHub Actions
+  # ==========================================================================
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "yourusername"
+    assignees:
+      - "yourusername"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  # ==========================================================================
+  # Docker Dependencies
+  # ==========================================================================
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "yourusername"
+    assignees:
+      - "yourusername"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore"
+      include: "scope"

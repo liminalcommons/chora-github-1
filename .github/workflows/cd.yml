@@ -1,0 +1,263 @@
+# GitHub - Continuous Deployment Workflow
+#
+# This workflow runs on version tags (e.g., v0.1.0) and publishes to PyPI and Docker Hub.
+# It also creates GitHub releases with auto-generated changelogs.
+
+name: CD
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Trigger on version tags (e.g., v0.1.0, v1.2.3)
+  workflow_dispatch:  # Allow manual trigger
+    inputs:
+      version:
+        description: 'Version to deploy (e.g., 0.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write  # For creating releases
+  packages: write  # For publishing to GHCR
+  id-token: write  # For OIDC token (PyPI trusted publishing)
+
+jobs:
+  # ==========================================================================
+  # Build Job
+  # ==========================================================================
+  build:
+    name: Build Package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for changelog
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+
+      - name: Build package
+        run: python -m build
+
+      - name: Check package
+        run: twine check dist/*
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  # ==========================================================================
+  # Publish to PyPI
+  # ==========================================================================
+  publish-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: pypi
+      url: https://pypi.org/project/github/
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI (OIDC)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # Uses OIDC trusted publishing (no API token needed)
+          # Configure at: https://pypi.org/manage/account/publishing/
+          # Project: github
+          # Publisher: yourusername/github
+          # Workflow: cd.yml
+          # Environment: pypi
+          verbose: true
+
+      # Alternative: Publish with API token (if not using OIDC)
+      # - name: Publish to PyPI (Token)
+      #   uses: pypa/gh-action-pypi-publish@release/v1
+      #   with:
+      #     password: ${{ secrets.PYPI_API_TOKEN }}
+
+  # ==========================================================================
+  # Build and Publish Docker Image
+  # ==========================================================================
+  publish-docker:
+    name: Publish Docker Image
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            VERSION="${{ inputs.version }}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "major=$(echo ${VERSION} | cut -d. -f1)" >> $GITHUB_OUTPUT
+          echo "minor=$(echo ${VERSION} | cut -d. -f1-2)" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            yourusername/github:latest
+            yourusername/github:${{ steps.version.outputs.version }}
+            yourusername/github:${{ steps.version.outputs.major }}
+            yourusername/github:${{ steps.version.outputs.minor }}
+            ghcr.io/yourusername/github:latest
+            ghcr.io/yourusername/github:${{ steps.version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.title=GitHub
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+  # ==========================================================================
+  # Create GitHub Release
+  # ==========================================================================
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [publish-pypi, publish-docker]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for changelog
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            VERSION="${{ inputs.version }}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get commits since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"- %s (%h)" --reverse)
+          else
+            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --reverse)
+          fi
+
+          # Write to file for multiline output
+          cat > changelog.txt <<EOF
+          ## Changes in v${{ steps.version.outputs.version }}
+
+          ${COMMITS}
+
+          ## Installation
+
+          \`\`\`bash
+          pip install github==${{ steps.version.outputs.version }}
+          \`\`\`
+
+          ## Docker
+
+          \`\`\`bash
+          docker pull yourusername/github:${{ steps.version.outputs.version }}
+          \`\`\`
+
+          ## Links
+
+          - PyPI: https://pypi.org/project/github/${{ steps.version.outputs.version }}/
+          - Docker Hub: https://hub.docker.com/r/yourusername/github
+          - GitHub Container Registry: https://ghcr.io/yourusername/github
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          body_path: changelog.txt
+          draft: false
+          prerelease: false
+          files: |
+            dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ==========================================================================
+  # Deployment Success Notification (Optional)
+  # ==========================================================================
+  notify:
+    name: Notify Deployment Success
+    runs-on: ubuntu-latest
+    needs: [release]
+    if: success()
+    steps:
+      - name: Extract version
+        id: version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            VERSION="${{ inputs.version }}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Send success notification
+        run: |
+          echo "✅ Successfully deployed github v${{ steps.version.outputs.version }}"
+          echo "PyPI: https://pypi.org/project/github/${{ steps.version.outputs.version }}/"
+          echo "Docker: yourusername/github:${{ steps.version.outputs.version }}"
+
+      # Optional: Send to Slack, Discord, email, etc.
+      # - name: Slack notification
+      #   uses: 8398a7/action-slack@v3
+      #   with:
+      #     status: ${{ job.status }}
+      #     text: 'Deployed github v${{ steps.version.outputs.version }}'
+      #     webhook_url: ${{ secrets.SLACK_WEBHOOK }}

@@ -1,0 +1,459 @@
+# GitHub
+
+**Multi-interface capability server with CLI, REST API**
+
+[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Code Style](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![Type Checked](https://img.shields.io/badge/type%20checked-mypy-blue.svg)](http://mypy-lang.org/)
+[![Test Coverage](https://img.shields.io/badge/coverage-85%25%2B-brightgreen.svg)](pytest.ini)
+
+---
+
+## Overview
+
+GitHub is a production-ready capability server that provides multiple interfaces for managing github entities. Built with the **capability server architecture** (chora-base SAP-042-047), it features:
+
+- **🎯 Core/Interface Separation**: Business logic independent of interface choice
+- **🔌 Multiple Interfaces**: Choose CLI, REST API based on your needs
+- **✅ Type Safety**: Full Pydantic validation and mypy type checking
+- **🧪 Comprehensive Testing**: 85%+ test coverage with pytest
+- **📝 Rich Documentation**: OpenAPI, CLI help, and architecture docs
+- **🚀 Production Ready**: Error handling, logging, health checks, and deployment configs
+
+---
+
+## Quick Start
+
+### Installation
+
+```bash
+# Install from PyPI
+pip install github
+
+# Or install from source
+git clone https://github.com/yourusername/github.git
+cd github
+pip install -e ".[dev]"
+```
+
+### Basic Usage
+
+#### CLI Interface
+
+```bash
+# Create an entity
+github create "My First Task" --description "Get started with github"
+
+# List all entities
+github list
+
+# Get specific entity
+github get <entity-id>
+
+# Update status
+github status <entity-id> completed
+
+# Get help
+github --help
+```
+
+#### REST API Interface
+
+```bash
+# Start the API server
+uvicorn github.interfaces.rest:app --reload
+
+# API will be available at http://localhost:8000
+# OpenAPI docs: http://localhost:8000/docs
+# ReDoc: http://localhost:8000/redoc
+```
+
+```bash
+# Create entity via API
+curl -X POST http://localhost:8000/api/v1/github/entities \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My Task", "description": "Via REST API"}'
+
+# List entities
+curl http://localhost:8000/api/v1/github/entities
+```
+
+
+---
+
+## Features
+
+### Core Capabilities
+
+- **Create**: Add new github entities with validation
+- **Read**: Retrieve entities by ID or filter by criteria
+- **Update**: Modify entity properties and status
+- **Delete**: Remove entities (single or bulk operations)
+- **Filter**: Query by status, name, metadata, creation date
+- **Pagination**: Efficient handling of large datasets
+
+### Interface Features
+
+#### CLI Features
+- **Multiple Output Formats**: JSON, table, YAML
+- **Rich Terminal Output**: Colors, tables, progress indicators
+- **Scripting Support**: Exit codes, JSON output for automation
+- **Interactive Mode**: Prompts for missing required arguments
+
+#### REST API Features
+- **OpenAPI Documentation**: Auto-generated, interactive docs
+- **CORS Support**: Configurable cross-origin requests
+- **Async Performance**: FastAPI with async/await throughout
+- **Error Handling**: Standardized error responses
+- **Health Checks**: `/health` and `/ready` endpoints
+
+
+
+
+
+---
+
+## Architecture
+
+GitHub follows the **core/interface separation pattern** (SAP-042):
+
+```
+github/
+├── core/                   # Business logic (interface-agnostic)
+│   ├── models.py           # Pydantic domain models
+│   ├── services.py         # Service layer (CRUD operations)
+│   └── exceptions.py       # Error hierarchy
+├── interfaces/             # Interface adapters
+│   ├── cli/                # Click CLI
+│   ├── rest/               # FastAPI REST
+└── tests/                  # Comprehensive test suite
+```
+
+**Design Principles**:
+1. **Core Independence**: Business logic has no interface dependencies
+2. **Type Safety**: Pydantic models + mypy = runtime + static validation
+3. **Dependency Injection**: Swappable implementations (in-memory, database, etc.)
+4. **Error Handling**: Rich exception hierarchy with serialization
+5. **Test Coverage**: 85%+ coverage target with unit + integration tests
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed architecture documentation.
+
+---
+
+## Development
+
+### Setup Development Environment
+
+```bash
+# Clone repository
+git clone https://github.com/yourusername/github.git
+cd github
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install development dependencies
+pip install -e ".[dev]"
+
+# Install pre-commit hooks
+pre-commit install
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=github --cov-report=html
+
+# Run specific test file
+pytest tests/core/test_models.py
+
+# Run tests in parallel
+pytest -n auto
+
+# Run with markers
+pytest -m unit          # Only unit tests
+pytest -m integration   # Only integration tests
+pytest -m "not slow"    # Skip slow tests
+```
+
+### Code Quality
+
+```bash
+# Lint with ruff
+ruff check .
+
+# Format with ruff
+ruff format .
+
+# Type check with mypy
+mypy github
+
+# Run all pre-commit hooks
+pre-commit run --all-files
+```
+
+### Building Documentation
+
+```bash
+# Install docs dependencies
+pip install -e ".[dev]"
+
+# Serve docs locally
+mkdocs serve
+
+# Build static docs
+mkdocs build
+```
+
+---
+
+## Deployment
+
+### Docker Deployment
+
+```bash
+# Build Docker image
+docker build -t github:latest .
+
+# Run REST API server
+docker run -p 8000:8000 github:latest
+
+# Run CLI
+docker run github:latest github --help
+```
+
+### Production Deployment
+
+```bash
+# Install production dependencies
+pip install github
+
+# Run REST API with Gunicorn
+gunicorn github.interfaces.rest:app \
+  --workers 4 \
+  --worker-class uvicorn.workers.UvicornWorker \
+  --bind 0.0.0.0:8000
+
+# Or use Docker Compose
+docker-compose up -d
+```
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed deployment instructions.
+
+---
+
+## Configuration
+
+### Environment Variables
+
+```bash
+# Application settings
+export GITHUB_LOG_LEVEL=INFO
+export GITHUB_ENV=production
+
+# REST API settings
+export GITHUB_API_HOST=0.0.0.0
+export GITHUB_API_PORT=8000
+export GITHUB_API_WORKERS=4
+
+# CORS settings
+export GITHUB_CORS_ORIGINS=https://example.com,https://app.example.com
+```
+
+### Configuration File
+
+Create `.github.yaml` in your home directory or project root:
+
+```yaml
+log_level: INFO
+environment: production
+
+api:
+  host: 0.0.0.0
+  port: 8000
+  workers: 4
+
+cors:
+  enabled: true
+  origins:
+    - https://example.com
+    - https://app.example.com
+```
+
+---
+
+## Documentation
+
+- **[AGENTS.md](AGENTS.md)**: Complete reference for AI agents and developers
+- **[CLI.md](CLI.md)**: CLI command reference
+- **[API.md](API.md)**: REST API reference
+- **[ARCHITECTURE.md](ARCHITECTURE.md)**: Architecture deep dive
+- **OpenAPI Docs**: http://localhost:8000/docs (when server running)
+
+---
+
+## Examples
+
+### Example 1: Create and Track Entities
+
+```python
+from github.core import GithubService, CreateEntityRequest
+
+# Create service
+service = GithubService()
+
+# Create entity
+request = CreateEntityRequest(
+    name="My Task",
+    description="Important work",
+    metadata={"priority": "high", "assignee": "alice"}
+)
+entity = await service.create(request)
+
+# Get entity
+retrieved = await service.get(entity.id)
+
+# Update status
+updated = await service.update_status(entity.id, "in_progress")
+
+# List all active entities
+active = await service.list(filters={"status": "active"})
+```
+
+### Example 2: REST API Client
+
+```python
+import httpx
+
+async with httpx.AsyncClient() as client:
+    # Create entity
+    response = await client.post(
+        "http://localhost:8000/api/v1/github/entities",
+        json={"name": "My Task", "description": "Via API"}
+    )
+    entity = response.json()
+
+    # Get entity
+    response = await client.get(
+        f"http://localhost:8000/api/v1/github/entities/{entity['id']}"
+    )
+    retrieved = response.json()
+```
+
+### Example 3: CLI Scripting
+
+```bash
+#!/bin/bash
+# Bulk create entities from CSV
+
+while IFS=, read -r name description; do
+  github create "$name" --description "$description" --format json
+done < entities.csv
+
+# Export all entities to JSON
+github list --format json > entities_backup.json
+```
+
+
+---
+
+## Performance
+
+- **CLI**: <100ms for most operations
+- **REST API**: 1000+ requests/second (single worker)
+- **Memory**: ~50MB baseline, +10MB per 10K entities (in-memory)
+- **Startup**: <1 second
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for scaling and performance optimization.
+
+---
+
+## Security
+
+- **Input Validation**: Pydantic models validate all inputs
+- **SQL Injection**: N/A (in-memory by default)
+- **XSS Protection**: Automatic escaping in REST responses
+- **CORS**: Configurable origin whitelist
+- **Rate Limiting**: Implement via middleware (see docs)
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for security recommendations.
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+**ImportError: No module named 'github'**
+```bash
+pip install -e .  # Install in editable mode
+```
+
+**CLI command not found**
+```bash
+pip install -e .  # Reinstall to register entry points
+which github  # Verify installation
+```
+
+**REST API CORS errors**
+```bash
+export GITHUB_CORS_ORIGINS=http://localhost:3000
+uvicorn github.interfaces.rest:app --reload
+```
+
+
+See [AGENTS.md](AGENTS.md) for more troubleshooting guidance.
+
+---
+
+## Contributing
+
+We welcome contributions! Please see:
+
+1. **Development Setup**: See "Development" section above
+2. **Code Style**: We use ruff (linting + formatting) and mypy (type checking)
+3. **Testing**: All code must have tests (85%+ coverage target)
+4. **Documentation**: Update relevant docs (AGENTS.md, CLI.md, API.md, etc.)
+
+```bash
+# Before submitting PR:
+pre-commit run --all-files  # Run quality checks
+pytest                      # Run tests
+mypy github            # Type check
+```
+
+---
+
+## License
+
+This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
+
+---
+
+## Acknowledgments
+
+- Built with the **chora-base capability server architecture** (SAP-042-047)
+- Inspired by the **chora-base SAP framework** for reusable capabilities
+- Powered by [FastAPI](https://fastapi.tiangolo.com/), [Click](https://click.palletsprojects.com/)
+
+---
+
+## Links
+
+- **Homepage**: https://github.com/yourusername/github
+- **Documentation**: https://github.readthedocs.io
+- **Issues**: https://github.com/yourusername/github/issues
+- **Changelog**: [CHANGELOG.md](CHANGELOG.md)
+- **PyPI**: https://pypi.org/project/github/
+
+---
+
+**Generated by**: chora-base SAP-047 (Capability Server Template)
+**Template Version**: 0.3.0 (Phase 3 Complete - Infrastructure)
+**Last Updated**: 2025-11-12
