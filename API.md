@@ -687,6 +687,359 @@ docker run -p 8000:8000 github
 
 ---
 
+---
+
+## MCP Interface (Model Context Protocol)
+
+**Server Name**: `mcp-server-github`
+**Version**: 1.0.0
+**Namespace**: `github`
+**Entry Point**: `github-mcp`
+
+### Overview
+
+The MCP interface provides 8 tools for AI assistants (like Claude) to interact with GitHub repositories. All tools use the `github:` namespace prefix.
+
+**Features**:
+- ✅ 8 GitHub tools (issues, PRs, files)
+- ✅ Async execution with FastMCP
+- ✅ JSON response format
+- ✅ Consistent error handling
+- ✅ Token-based authentication
+
+### Setup
+
+**1. Install**:
+```bash
+pip install chora-github
+```
+
+**2. Configure Claude Desktop**:
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "github-mcp",
+      "env": {
+        "GITHUB_TOKEN": "ghp_your_personal_access_token"
+      }
+    }
+  }
+}
+```
+
+**3. Restart Claude Desktop**
+
+### MCP Tools
+
+All tools follow this pattern:
+- **Input**: Named parameters (owner, repo, etc.)
+- **Output**: JSON string with `success` field
+- **Authentication**: GitHub PAT via `GITHUB_TOKEN` env var or `token` parameter
+
+---
+
+#### Tool 1: `github:list_issues`
+
+List issues in a GitHub repository.
+
+**Parameters**:
+- `owner` (string, required): Repository owner
+- `repo` (string, required): Repository name
+- `state` (string, optional): Filter by state - "open", "closed", or "all" (default: "open")
+- `token` (string, optional): GitHub PAT (uses GITHUB_TOKEN env if not provided)
+
+**Example**:
+```python
+await list_issues("octocat", "Hello-World", "open")
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "issues": [
+      {
+        "number": 1,
+        "title": "Bug in feature X",
+        "state": "open",
+        "url": "https://github.com/octocat/Hello-World/issues/1",
+        "created_at": "2025-01-01T10:00:00Z",
+        "updated_at": "2025-01-01T12:00:00Z",
+        "body": "Description...",
+        "labels": ["bug", "critical"],
+        "assignees": ["octocat"],
+        "author": "octocat"
+      }
+    ],
+    "total_count": 1
+  }
+}
+```
+
+---
+
+#### Tool 2: `github:create_issue`
+
+Create a new issue in a GitHub repository.
+
+**Parameters**:
+- `owner` (string, required): Repository owner
+- `repo` (string, required): Repository name
+- `title` (string, required): Issue title
+- `body` (string, optional): Issue description/body
+- `labels` (list[string], optional): List of label names to apply
+- `assignees` (list[string], optional): List of usernames to assign
+- `token` (string, optional): GitHub PAT
+
+**Example**:
+```python
+await create_issue(
+    "octocat",
+    "Hello-World",
+    "Found a bug",
+    "The feature doesn't work as expected",
+    ["bug"],
+    ["octocat"]
+)
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "issue": {
+      "number": 42,
+      "title": "Found a bug",
+      "state": "open",
+      "url": "https://github.com/octocat/Hello-World/issues/42",
+      "created_at": "2025-01-01T14:30:00Z",
+      "labels": ["bug"],
+      "assignees": ["octocat"]
+    }
+  }
+}
+```
+
+---
+
+#### Tool 3: `github:get_issue`
+
+Get detailed information about a specific issue.
+
+**Parameters**:
+- `owner` (string, required): Repository owner
+- `repo` (string, required): Repository name
+- `issue_number` (int, required): Issue number
+- `token` (string, optional): GitHub PAT
+
+**Example**:
+```python
+await get_issue("octocat", "Hello-World", 1)
+```
+
+**Response**: Same format as `list_issues`, but single issue object.
+
+---
+
+#### Tool 4: `github:update_issue`
+
+Update an existing issue (title, body, state, labels, assignees).
+
+**Parameters**:
+- `owner` (string, required): Repository owner
+- `repo` (string, required): Repository name
+- `issue_number` (int, required): Issue number
+- `title` (string, optional): New title
+- `body` (string, optional): New body/description
+- `state` (string, optional): New state ("open" or "closed")
+- `labels` (list[string], optional): New labels (replaces existing)
+- `assignees` (list[string], optional): New assignees (replaces existing)
+- `token` (string, optional): GitHub PAT
+
+**Example**:
+```python
+await update_issue(
+    "octocat",
+    "Hello-World",
+    1,
+    state="closed"
+)
+```
+
+---
+
+#### Tool 5: `github:list_prs`
+
+List pull requests in a GitHub repository.
+
+**Parameters**:
+- `owner` (string, required): Repository owner
+- `repo` (string, required): Repository name
+- `state` (string, optional): Filter by state - "open", "closed", or "all" (default: "open")
+- `head` (string, optional): Filter by head branch
+- `base` (string, optional): Filter by base branch
+- `page` (int, optional): Page number for pagination (default: 1)
+- `per_page` (int, optional): Results per page (default: 30, max: 100)
+- `token` (string, optional): GitHub PAT
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "pull_requests": [
+      {
+        "number": 1,
+        "title": "Add new feature",
+        "state": "open",
+        "url": "https://github.com/octocat/Hello-World/pull/1",
+        "created_at": "2025-01-01T10:00:00Z",
+        "head_ref": "feature-branch",
+        "base_ref": "main",
+        "author": "octocat",
+        "mergeable": true,
+        "merged": false
+      }
+    ],
+    "total_count": 1
+  }
+}
+```
+
+---
+
+#### Tool 6: `github:get_pr`
+
+Get detailed information about a specific pull request.
+
+**Parameters**:
+- `owner` (string, required): Repository owner
+- `repo` (string, required): Repository name
+- `pr_number` (int, required): PR number
+- `token` (string, optional): GitHub PAT
+
+**Response**: Same format as `list_prs`, but single PR object.
+
+---
+
+#### Tool 7: `github:get_file_contents`
+
+Get file contents from a GitHub repository.
+
+**Parameters**:
+- `owner` (string, required): Repository owner
+- `repo` (string, required): Repository name
+- `path` (string, required): File path from repository root
+- `ref` (string, optional): Branch, tag, or commit SHA (default: repository's default branch)
+- `token` (string, optional): GitHub PAT
+
+**Example**:
+```python
+await get_file_contents("octocat", "Hello-World", "README.md")
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "path": "README.md",
+    "content": "# Hello World\n\nThis is a test file.",
+    "size": 35,
+    "encoding": "utf-8",
+    "sha": "abc123def456"
+  }
+}
+```
+
+---
+
+#### Tool 8: `github:list_repo_files`
+
+List files in a repository directory.
+
+**Parameters**:
+- `owner` (string, required): Repository owner
+- `repo` (string, required): Repository name
+- `path` (string, optional): Directory path (default: "" for root)
+- `ref` (string, optional): Branch, tag, or commit SHA
+- `token` (string, optional): GitHub PAT
+
+**Example**:
+```python
+await list_repo_files("octocat", "Hello-World", "src")
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "files": [
+      {
+        "name": "main.py",
+        "path": "src/main.py",
+        "type": "file",
+        "size": 1024,
+        "sha": "def456abc123"
+      },
+      {
+        "name": "utils",
+        "path": "src/utils",
+        "type": "dir",
+        "size": 0,
+        "sha": "789ghi012jkl"
+      }
+    ],
+    "path": "src",
+    "total_count": 2
+  }
+}
+```
+
+---
+
+### Error Responses
+
+All tools return standardized error responses:
+
+```json
+{
+  "success": false,
+  "error": {
+    "type": "GithubNotFoundError",
+    "message": "Repository not found"
+  }
+}
+```
+
+**Error Types**:
+- `GithubError`: General GitHub API error
+- `GithubNotFoundError`: Repository, issue, or PR not found
+- `GithubPermissionError`: Insufficient permissions
+- `GithubValidationError`: Invalid input data
+- `ValueError`: Missing or invalid token
+
+---
+
+### Testing MCP Server
+
+**Run server directly**:
+```bash
+github-mcp
+```
+
+**Test with Claude Desktop**:
+1. Configure server in `claude_desktop_config.json`
+2. Restart Claude Desktop
+3. Use natural language: "List issues in octocat/Hello-World"
+
+---
+
 ## See Also
 
 - **[CLI.md](CLI.md)** - CLI reference

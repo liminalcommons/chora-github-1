@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "chora-github"
 version = "0.1.0"
-description = "GitHub - Multi-interface capability server (CLI/REST)"
+description = "GitHub - Multi-interface capability server (CLI/REST/MCP)"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
@@ -18,6 +18,8 @@ keywords = [
     "multi-interface",
     "cli",
     "rest-api",
+    "mcp",
+    "model-context-protocol",
     "chora-base",
 ]
 classifiers = [
@@ -48,6 +50,9 @@ dependencies = [
     # REST API dependencies
     "fastapi>=0.110.0,<1.0.0",
     "uvicorn[standard]>=0.27.0,<1.0.0",
+
+    # MCP dependencies
+    "fastmcp>=0.3.0",
 
 ]
 
@@ -84,6 +89,7 @@ all = [
 
 [project.scripts]
 github = "chora_github.interfaces.cli:cli"
+github-mcp = "chora_github.interfaces.mcp:main"
 
 [project.urls]
 Homepage = "https://github.com/liminalcommons/chora-github"

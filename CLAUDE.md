@@ -2,7 +2,7 @@
 title: GitHub - Claude Agent Awareness
 type: reference
 status: active
-last_updated: '2025-11-14'
+last_updated: '2025-11-19'
 tags:
 - documentation
 - reference
@@ -13,7 +13,7 @@ tags:
 **Generated from**: chora-base 5.0.0 (SAP-047 Capability Server Template)
 **Project**: github
 **Namespace**: github
-**Architecture**: Capability Server with CLI + REST interfaces
+**Architecture**: Capability Server with CLI + REST + MCP interfaces
 
 ---
 
@@ -22,7 +22,7 @@ tags:
 This project was generated from **chora-base 5.0.0** using the **SAP-047 Capability Server Template** generator. It follows the capability server architecture pattern with:
 
 - **Core/Interface Separation** (SAP-042): Business logic isolated from interface implementations
-- **Multi-Interface Support** (SAP-043): CLI and REST API
+- **Multi-Interface Support** (SAP-043): CLI, REST API, and MCP (Model Context Protocol)
 
 
 
@@ -75,6 +75,10 @@ github/
 │   │   └── commands.py
 │   ├── rest/                      # REST API interface (FastAPI)
 │   │   └── app.py
+│   ├── mcp/                       # MCP interface (FastMCP)
+│   │   ├── __init__.py           # Server setup
+│   │   ├── tools.py              # MCP tool implementations
+│   │   └── resources.py          # MCP resource implementations
 │
 ├── tests/                         # Test suite (mirrors package)
 │   ├── unit/                      # Unit tests
@@ -104,8 +108,8 @@ github/
 - **Testing**: Unit tests with fast execution
 
 **Interface Layer** (`github/interfaces/`):
-- **Purpose**: Expose core functionality via CLI, REST, MCP
-- **Dependencies**: Click, FastAPI, FastMCP, etc.
+- **Purpose**: Expose core functionality via CLI, REST, and MCP
+- **Dependencies**: Click (CLI), FastAPI (REST), FastMCP (MCP)
 - **Pattern**: Each interface imports core and adapts to its protocol
 - **Testing**: Integration tests verifying interface contracts
 
@@ -119,7 +123,7 @@ github/
 
 ## Multi-Interface Support (SAP-043)
 
-This project provides 2 interfaces to the same core capability:
+This project provides 3 interfaces to the same core capability:
 
 ### 1. CLI Interface (Click)
 ```bash
@@ -149,8 +153,50 @@ curl http://localhost:8000/docs  # Swagger UI
 
 ---
 
+### 3. MCP Interface (Model Context Protocol)
 
-**All interfaces share the same core service**, ensuring consistency across CLI, REST.
+**Entry point**: `github-mcp`
+
+**Setup for Claude Desktop**:
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "github-mcp",
+      "env": {
+        "GITHUB_TOKEN": "ghp_your_personal_access_token"
+      }
+    }
+  }
+}
+```
+
+**Available Tools** (8 total):
+- `github:list_issues` - List issues in a repository
+- `github:create_issue` - Create a new issue
+- `github:get_issue` - Get issue details by number
+- `github:update_issue` - Update existing issue
+- `github:list_prs` - List pull requests in a repository
+- `github:get_pr` - Get pull request details by number
+- `github:get_file_contents` - Get file contents from repository
+- `github:list_repo_files` - List files in repository directory
+
+**Usage Examples** (natural language in Claude Desktop):
+```
+"List open issues in octocat/Hello-World"
+"Create an issue titled 'Bug fix' in my-org/my-repo"
+"Show me the README.md from octocat/Hello-World"
+"List pull requests in my-org/my-repo with state open"
+"Get issue #42 from octocat/Hello-World"
+```
+
+**When to use**: AI assistants (Claude Desktop), conversational interfaces, agent-driven workflows
+
+---
+
+**All interfaces share the same core service**, ensuring consistency across CLI, REST, and MCP.
 
 ---
 
@@ -341,6 +387,26 @@ def my_endpoint():
 
 ---
 
+### Task: Add New MCP Tool
+
+1. Define in `github/interfaces/mcp/tools.py`:
+```python
+@mcp.tool()
+async def github_my_tool(
+    param: str = Field(..., description="Parameter description")
+) -> str:
+    """My new MCP tool description."""
+    service = _get_service()
+    # Use core service here
+    return "Result"
+```
+
+2. Register in `register_tools()` function (already done via decorator)
+3. Test in Claude Desktop or with MCP client
+4. Add test in `tests/interfaces/test_mcp.py`
+5. Document in `API.md` MCP section
+
+---
 
 ### Task: Add Core Business Logic
 
@@ -395,6 +461,12 @@ def my_endpoint():
 ---
 
 ## Version History
+
+- **1.1.0** (2025-11-19): MCP Interface Addition
+  - Added MCP (Model Context Protocol) interface
+  - 8 MCP tools for GitHub operations (issues, PRs, files)
+  - Comprehensive test suite (30 tests for MCP)
+  - Updated documentation for 3-interface pattern
 
 - **1.0.0** (Initial Release): Generated from chora-base 5.0.0
   - Capability server architecture (SAP-042-047)
