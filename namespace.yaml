@@ -1,0 +1,26 @@
+# Namespace Declaration for chora-github
+# GitHub MCP Server for chora ecosystem
+
+namespace: chora.integration.github_mcp
+domain: integration
+capability: github_mcp
+type: service
+
+repository: chora-github
+purpose: GitHub Model Context Protocol (MCP) server for repository operations
+
+description: |
+  MCP server implementation providing GitHub API integration for autonomous agents.
+  Enables agents to interact with GitHub repositories, issues, PRs, and workflows.
+
+capabilities:
+  - Repository operations (clone, pull, push)
+  - Issue and PR management
+  - Workflow automation
+  - Code review integration
+
+runtime: nodejs
+protocol: MCP (Model Context Protocol)
+
+created: 2025-11-23
+version: 1.0.0
